@@ -1,45 +1,42 @@
 import sqlite3
 
-DB_FILE = "inventory.db"
+def connect_db():
+    """Устанавливает соединение с базой данных."""
+    conn = sqlite3.connect("inventory.db")
+    conn.row_factory = sqlite3.Row
+    return conn
 
-def initialize_db():
-    connection = sqlite3.connect(DB_FILE)
-    cursor = connection.cursor()
+def create_table():
+    """Создаёт таблицу products, если она не существует."""
+    conn = connect_db()
+    cursor = conn.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS inventory (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL UNIQUE,
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
             quantity INTEGER NOT NULL
         )
     """)
-    connection.commit()
-    connection.close()
+    conn.commit()
+    conn.close()
 
-def add_product(name, quantity):
-    connection = sqlite3.connect(DB_FILE)
-    cursor = connection.cursor()
-    cursor.execute("INSERT INTO inventory (name, quantity) VALUES (?, ?)", (name, quantity))
-    connection.commit()
-    connection.close()
+def add_product(cursor, name, quantity):
+    """Добавляет новый продукт в базу данных."""
+    cursor.execute("SELECT COUNT(*) FROM products WHERE name = ?", (name,))
+    if cursor.fetchone()[0] > 0:
+        raise ValueError(f"Продукт с именем '{name}' уже существует.")
+    cursor.execute("INSERT INTO products (name, quantity) VALUES (?, ?)", (name, quantity))
 
-def delete_product(name):
-    connection = sqlite3.connect(DB_FILE)
-    cursor = connection.cursor()
-    cursor.execute("DELETE FROM inventory WHERE name = ?", (name,))
-    connection.commit()
-    connection.close()
+def delete_product(cursor, name):
+    """Удаляет продукт из базы данных."""
+    cursor.execute("DELETE FROM products WHERE name = ?", (name,))
 
-def update_product_quantity(name, quantity):
-    connection = sqlite3.connect(DB_FILE)
-    cursor = connection.cursor()
-    cursor.execute("UPDATE inventory SET quantity = ? WHERE name = ?", (quantity, name))
-    connection.commit()
-    connection.close()
+def get_product(cursor, name):
+    """Возвращает информацию о продукте."""
+    cursor.execute("SELECT * FROM products WHERE name = ?", (name,))
+    return cursor.fetchone()
 
-def list_products():
-    connection = sqlite3.connect(DB_FILE)
-    cursor = connection.cursor()
-    cursor.execute("SELECT name, quantity FROM inventory")
-    products = [{"name": row[0], "quantity": row[1]} for row in cursor.fetchall()]
-    connection.close()
-    return products
+def get_all_products(cursor):
+    """Возвращает список всех продуктов."""
+    cursor.execute("SELECT * FROM products")
+    return cursor.fetchall()
